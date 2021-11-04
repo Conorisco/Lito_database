@@ -1,0 +1,1712 @@
+---
+title: "Global results"
+author: "Conor Finlay"
+date: "21/10/2020"
+output: html_document
+---
+Setup and load packages
+```{r}
+library(tidyverse)
+library(readxl)
+library(cowplot)
+library(ggbeeswarm)
+library(gtable)    
+library(grid)
+library(gridExtra)
+library(ggpubr)
+```
+
+```{r}
+#Load data
+library(readxl)
+raw <- read_excel("../GLOBAL_2020.xlsx")
+
+```
+
+```{r}
+# Remove FACS sample name
+colnames(raw)
+raw <- raw[-1]
+```
+
+```{r}
+# create an unmaniplated df called raw and factorise key parameters so they can be ordered when graphing
+raw$Infection <- factor(raw$Infection,levels = c("Naive", "Infected"))
+raw$Background <- factor(raw$Background,levels = c("C57BL/6", "B10.D2", "BALB/c", "F1"))
+# create a dataset called data which removes poor quality readouts and only those which include lito and filters to include mid stage of infection as infected
+data <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>% filter(`Timepoint` < 64) %>% filter(`Timepoint` != 11) %>% filter(`Timepoint` != 23)  %>% filter(`Timepoint` != 18)
+# Colour palettes 
+cols <-  c("black","firebrick3", "purple", "green")
+pal <- scale_color_manual(values = cols)
+
+```
+
+
+## Naive groups
+
+```{r fig.height=5, fig.width=16}
+
+p3<-raw %>% 
+  filter(`Remove from Analysis (justified)` != "T") %>%
+  filter(`OK for strain comparison` == "T") %>%
+  filter(Infection == "Naive") %>%
+  ggplot(aes(
+  y=(`LCM of Myeloid`/`SCM of Myeloid` ), 
+  x=`Background`, col=Background)) + 
+  geom_boxplot() + 
+ scale_y_log10() +
+    ylab("LCM:SCM ratio") +
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+  coord_fixed(ratio = 1.3) +
+#geom_point(position = position_jitterdodge(dodge.width = 0.75, jitter.width = 0.2)) +
+  theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+   
+          axis.title.x = element_blank(),
+          plot.margin = unit(c(1, 0.5, 1, 0), "cm")) +
+  pal + 
+  stat_compare_means(method = "t.test", label = "p.signif", label.x.npc = "middle",size=8, vjust = 1) 
+
+
+p1<-raw %>% 
+  filter(`Remove from Analysis (justified)` != "T") %>%
+  filter(`OK for strain comparison` == "T") %>%
+  filter(Infection == "Naive") %>%
+  ggplot(aes(
+  y=((`LCM of Myeloid`/100)*`Cell Count` ), 
+  x=`Background`, col=Background)) + 
+  geom_boxplot() + 
+ scale_y_log10() +
+    ylab("LCM") +
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+  coord_fixed(ratio = 1.3) +
+#geom_point(position = position_jitterdodge(dodge.width = 0.75, jitter.width = 0.2)) +
+  theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+   
+          axis.title.x = element_blank(),
+          plot.margin = unit(c(1, 0.5, 1, 0), "cm")) +
+  pal + 
+  stat_compare_means(method = "t.test", label = "p.signif", label.x.npc = "middle",size=8, vjust = 1) 
+
+
+p2 <-raw %>% 
+  filter(`Remove from Analysis (justified)` != "T") %>%
+  filter(`OK for strain comparison` == "T") %>%
+  filter(Infection == "Naive") %>%
+  ggplot(aes(
+  y=((`SCM of Myeloid`/100)*`Cell Count` ), 
+  x=`Background`, col=Background)) + 
+  geom_boxplot() + 
+ scale_y_log10() +
+    ylab("SCM") +
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+  coord_fixed(ratio = 1.3) +
+#geom_point(position = position_jitterdodge(dodge.width = 0.75, jitter.width = 0.2)) +
+  theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+   
+          axis.title.x = element_blank(),
+          plot.margin = unit(c(1, 0.5, 1, 0), "cm")) +
+  pal + 
+  stat_compare_means(method = "t.test", label = "p.signif", label.x.npc = "middle",size=8, vjust = 1) 
+
+plot_grid(p1,p2,p3,align = 'hv', ncol =3)
+#ggsave(filename = "Naive_comparison.pdf", path = "./ggsave", device = "pdf", height = 7, width =16)
+
+#ggsave(filename = "Macrophage_ratio_bar_summary.pdf", path = "./ggsave", device = "pdf", height = 5, width =7.5) 
+```
+
+```{r}
+raw = mutate(raw, bcount = `B cells`/100*`Cell Count`)
+raw = mutate(raw, dccount = `DC`/100*`Cell Count`)
+raw = mutate(raw, scmcount = `SCM`/100*`Cell Count`)
+```
+
+Playground for kinetics
+
+
+```{r}
+p1 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>%
+  filter(`OK for strain comparison` == "T") %>%
+  filter(Infection !="Infected") %>%
+  ggplot(aes(x=Age, y=((`LCM`)/100)*`Cell Count`,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +ggtitle("LCM Numbers") +
+#scale_y_log10(limits=c(1e3,2.5e7)) +
+theme_cowplot(font_size = 24) +
+  xlab("Mouse Age (days)") +
+    ylab("LCM numbers") +
+    theme(legend.position = "none", 
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+
+p1 
+ggsave("./ggsave/Age_LCM.png")
+p2 <-raw %>% filter(`Remove from Analysis (justified)` != "T") %>%
+  filter(`OK for strain comparison` == "T") %>%
+  mutate("Residency Ratio" = (`LCM of Myeloid`/(`Monocyte of Myeloid` + `SCM of Myeloid` + `Converting SCM of Myeloid`))) %>%
+  filter(Infection !="Infected") %>%
+  ggplot(aes(x=Age,
+             y=`Residency Ratio`,
+         col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +ggtitle("LCM to recruited cell ratio") +
+#scale_y_log10(limits=c(1e3,2.5e7)) +
+theme_cowplot(font_size = 24) +
+  xlab("Mouse Age (days)") +
+  ylab("Residency Ratio") +
+    theme(legend.position = "none", 
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+
+p2
+ggsave("./ggsave/Age_Residency.png")
+
+```
+
+
+```{r fig.height=4, fig.width=6}
+p1 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>% 
+  ggplot(aes(x=Timepoint, y=`B cells`,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +ggtitle("B Cells") +
+#scale_y_log10(limits=c(1e3,2.5e7)) +
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+
+p2 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>% 
+  ggplot(aes(x=Timepoint, y=`bcount`,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +ggtitle("B Cells") +
+#scale_y_log10(limits=c(1e3,2.5e7)) +
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+
+p1
+p2
+
+#ggsave(filename = "Cell_kinetics.pdf", path = "./ggsave", device = "pdf", height = 5, width =6)
+```
+
+```{r, fig.height = 7, fig.width = 7}
+raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T")  %>% ggplot(aes(x = Timepoint, y= `IL-13`, col=`Background`)) +
+  geom_point(position = position_jitterdodge(jitter.width = 10),aes()) + 
+  geom_smooth() +
+  ylab("IL-13 CD4+ T Cells") +
+  xlab("") +
+  scale_y_log10() +
+  scale_x_continuous(limits = c(0, 70)) +
+  theme_cowplot(font_size = 30) +
+  theme(legend.position = "none", plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+  pal
+```
+
+
+```{r fig.height=4, fig.width=6}
+p1 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>% 
+  ggplot(aes(x=Timepoint, 
+y=(`Ym1 of Macrophages`/100) * ((`Myeloid cells`/100)*`Cell Count`)                                                                                       ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+ggtitle("Ym1 + macrophages ") +
+#scale_y_log10(limits=c(1e3,2.5e7)) +
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+p1
+
+#ggsave(filename = "Cell_kinetics.pdf", path = "./ggsave", device = "pdf", height = 5, width =6)
+```
+
+Total cell kinetics
+```{r fig.height=4, fig.width=6}
+p1 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=`Cell Count`                                                                                                ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+ggtitle("Cell Count") +
+#scale_y_log10(limits=c(1e3,2.5e7)) +
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+p1
+
+#ggsave(filename = "Cell_kinetics.pdf", path = "./ggsave", device = "pdf", height = 5, width =6)
+```
+Flaoting chunk to look at whatever you want 
+```{r fig.height=4, fig.width=6}
+p1 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=`Blood Score`                                                                                               ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+#ggtitle("Cell Count") +
+#scale_y_log10(limits=c(1e3,2.5e7)) +
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+p1
+
+#ggsave(filename = "PDl2_kinetics.pdf", path = "./ggsave", device = "pdf", height = 5, width =6)
+```
+```{r}
+data %>% ggplot(aes(`Mertk+`, x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitterdodge(dodge.width = 0.75, jitter.width = 0.2)) +
+  theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.x = element_blank(),
+          plot.margin = unit(c(0.5, 0, 0, 0), "cm")) + pal
+```
+Myeloid cell kinetics
+```{r fig.height=5, fig.width=20}
+
+p1 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=(Monocytes/100)*`Cell Count`                                                                                                ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+ggtitle("Monocyte") +
+scale_y_log10(limits=c(1e3,2.5e7)) +
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+
+p2 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=(SCM/100)*`Cell Count`                                                                                                ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+ggtitle("SCM") +
+scale_y_log10(limits=c(1e3,2.5e7)) +
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+p3 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=(`Converting SCM`/100)*`Cell Count`                                                                                                ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+ggtitle("Converting SCM") +
+scale_y_log10(limits=c(1e3,2.5e7)) +
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+p4 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=(LCM/100)*`Cell Count`                                                                                                ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+ggtitle("LCM") +
+scale_y_log10(limits=c(1e3,2.5e7)) +
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+plot_grid(p1,p2,p3,p4,align = 'h', ncol =4)
+ggsave(filename = "Myeloid_kinetics.pdf", path = "./ggsave", device = "pdf", height = 6, width =30)
+```
+
+plot all myeloid information 
+```{r fig.height=10, fig.width=30}
+
+p1 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=`Monocyte of Myeloid`                                                                                                ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+ggtitle("Monocytes") +
+
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          axis.text.x=element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+
+p2 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=`SCM of Myeloid`                                                                                               ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+ggtitle("SCM") +
+
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+                    axis.title.x = element_blank(),
+          axis.text.x=element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+p3 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=`Converting SCM of Myeloid`                                                                                               ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+ggtitle("Converting SCM") +
+
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+                    axis.title.x = element_blank(),
+          axis.text.x=element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+p4 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=`LCM of Myeloid`                                                                                              ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+ggtitle("LCM") +
+
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+                    axis.title.x = element_blank(),
+          axis.text.x=element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+
+
+
+p5 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=(Monocytes/100)*`Cell Count`                                                                                                ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+scale_y_log10(limits=c(1e3,2.5e7)) +
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+
+p6 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=(SCM/100)*`Cell Count`                                                                                                ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+scale_y_log10(limits=c(1e3,2.5e7)) +
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+p7 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=(`Converting SCM`/100)*`Cell Count`                                                                                                ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+scale_y_log10(limits=c(1e3,2.5e7)) +
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+p8 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=(LCM/100)*`Cell Count`                                                                                                ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+scale_y_log10(limits=c(1e3,2.5e7)) +
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+
+
+
+plot_grid(p2,p1,p3,p4,
+          p6,p5,p7,p8,
+          align = 'v', nrow=2, ncol =4)
+ggsave(filename = "Myeloid_kinetics_percent_numbers.pdf", path = "./ggsave", device = "pdf", height = 10, width =30)
+```
+Myeloid kinetics linear
+```{r fig.height=4, fig.width=20}
+
+p1 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=(Monocytes/100)*`Cell Count`                                                                                                ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+ggtitle("Monocyte") +
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+
+p2 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=(SCM/100)*`Cell Count`                                                                                                ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+ggtitle("SCM") +
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+p3 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=(`Converting SCM`/100)*`Cell Count`                                                                                                ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+ggtitle("Converting SCM") +
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+p4 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=(LCM/100)*`Cell Count`                                                                                                ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+ggtitle("LCM") +
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+
+plot_grid(p1,p2,p3,p4,align = 'h', ncol =4)
+ggsave(filename = "Myeloid_kinetics_lin.pdf", path = "./ggsave", device = "pdf", height = 5, width =30)
+```
+Myeloid proportions
+
+```{r fig.height=5, fig.width=20}
+
+p1 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=`Monocyte of Myeloid`                                                                                                ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+ggtitle("Monocyte") +
+#scale_y_log10(limits=c(1e3,2.5e7)) +
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+
+p2 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=`SCM of Myeloid`                                                                                             ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+ggtitle("SCM") +
+#scale_y_log10(limits=c(1e3,2.5e7)) +
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+p3 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=`Converting SCM of Myeloid`                                                                                              ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+ggtitle("Converting SCM") +
+#scale_y_log10(limits=c(1e3,2.5e7)) +
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+p4 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=`LCM of Myeloid`                                                                                           ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+ggtitle("LCM") +
+#scale_y_log10(limits=c(1e3,2.5e7)) +
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+plot_grid(p1,p2,p3,p4,align = 'h', ncol =4)
+#ggsave(filename = "Myeloid_kinetics_proportion.pdf", path = "./ggsave", device = "pdf", height = 6, width =30)
+```
+
+Lin+ cells kinetics 
+```{r fig.height=5, fig.width=20}
+
+p1 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=(`B cells`/100)*`Cell Count`                                                                                                ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+ggtitle("B Cells") +
+  ylim(NA,25000000) +
+#scale_y_log10() +
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+
+p2 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=(Eosinophils/100)*`Cell Count`                                                                                                ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+ggtitle("Eosinophils") +
+#scale_y_log10() +
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+p3 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=(Neutrophils/100)*`Cell Count`                                                                                                ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+ggtitle("Neutrophils") +
+#scale_y_log10() +
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+p4 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=(`Myeloid cells`/100)*`Cell Count`                                                                                                ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+ggtitle("Myeloid Cells") +
+#scale_y_log10() +
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+p5 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=(`CD4+ T cells`/100)*`Cell Count`                                                                                                ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+ggtitle("CD4+ T cells") +
+#scale_y_log10() +
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+
+plot_grid(p1,p2,p3,p5,p4,align = 'h', ncol =5)
+ggsave(filename = "Lineage_pos_kinetics.pdf", path = "./ggsave", device = "pdf", height = 6, width =30)
+```
+Worm count
+```{r}
+p1 <- raw %>% 
+  filter(`Remove from Analysis (justified)` != "T") %>%
+  filter(`OK for strain comparison` == "T") %>%
+  filter(Timepoint >20) %>%
+  filter(Infection == "Infected") %>%
+  ggplot(aes(x=Timepoint, 
+y=((`Live worms`/`L3 Larva`) *100)                                                                                                ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth(method = "glm") +
+ggtitle("Worm recovery") +
+theme_cowplot(font_size = 30) +
+  ylim(0,70)+
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+p1
+#ggsave(filename = "Worm_kinetics.pdf", path = "./ggsave", device = "pdf", height = 5, width =6)
+```
+Granuloma count
+```{r}
+p1 <- raw %>% 
+  filter(`Remove from Analysis (justified)` != "T") %>%
+  filter(`OK for strain comparison` == "T") %>%
+  filter(Timepoint >20) %>%
+  filter(Infection == "Infected") %>%
+  ggplot(aes(x=Timepoint, 
+y=(Granulomas)                                                                                                ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+ggtitle("Granulomas recovered") +
+theme_cowplot(font_size = 30) +
+  #ylim(0,70)+
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+p1
+ggsave(filename = "Granuloma_kinetics.pdf", path = "./ggsave", device = "pdf", height = 5, width =6)
+```
+
+
+```{r fig.height=3, fig.width=5}
+  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>% filter(`Timepoint` > 20) %>% ggplot(aes(x=Timepoint, 
+                                                                                                                         #y= (`B cells`/100)*`Cell Count`
+  #y = (`B1 of B cells`/100)    *    (`B cells`/100)*`Cell Count`                                                     
+  #y = ((100 - `B1 of B cells`)/100) *(`B cells`/100)   * `Cell Count`  
+  y=  `Live worms`
+                                                                                                                  ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth(method = 'lm') +
+ ylab("Monocytes (Log10)") +
+  #geom_text(label=raw$Experiment) + 
+  #ylim(0,NA) +
+  #scale_y_log10() +
+  theme_cowplot() + pal
+
+#ggsave(filename = "Monocytes_log_timecourse.pdf", path = "./ggsave", device = "pdf", height = 5, width =7.5)
+```
+```{r fig.height=6, fig.width=12}
+
+p1 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=`Arg1 of Macrophages`                                                                                               ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+ggtitle("Arg1") +
+#scale_y_log10(limits=c(1e3,2.5e7)) +
+theme_cowplot(font_size = 30) +
+
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+
+p2 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=`RELMA of Macrophages`                                                                                            ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+ggtitle("RELMA") +
+#scale_y_log10(limits=c(1e3,2.5e7)) +
+theme_cowplot(font_size = 30) +
+
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+p3 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=`Ym1 of Macrophages`                                                                                            ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+ggtitle("Ym1") +
+#scale_y_log10(limits=c(1e3,2.5e7)) +
+theme_cowplot(font_size = 30) +
+
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+
+plot_grid(p2,p3,align = 'h', ncol =2)
+ggsave(filename = "M2_percent_kinetics.pdf", path = "./ggsave", device = "pdf", height = 6, width =12)
+```
+```{r fig.height=5, fig.width=15}
+
+p1 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=`Arg1 gMFI of Macrophages`                                                                                               ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+ggtitle("Arg1") +
+#scale_y_log10(limits=c(1e3,2.5e7)) +
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+
+p2 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=`RELMA gMFI of Macrophages`                                                                                            ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+ggtitle("RELMA") +
+#scale_y_log10(limits=c(1e3,2.5e7)) +
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+p3 <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>%   ggplot(aes(x=Timepoint, 
+y=`Ym1 gMFI of Macrophages`                                                                                            ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+ggtitle("Ym1") +
+#scale_y_log10(limits=c(1e3,2.5e7)) +
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+
+plot_grid(p1,p2,p3,align = 'h', ncol =3)
+ggsave(filename = "M2_gMFI_kinetics.pdf", path = "./ggsave", device = "pdf", height = 6, width =20)
+```
+
+```{r}
+  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>% ggplot(aes(x=Timepoint, 
+                                                                                                                         #y= (`B cells`/100)*`Cell Count`
+  #y = (`B1 of B cells`/100)    *    (`B cells`/100)*`Cell Count`                                                     
+# y= (Neutrophils)/100*`Cell Count`                                                
+  
+ y= `Ki67 of Macrophages`                                                                                                      ,col=`Background`)) + geom_point(position = position_jitterdodge(jitter.width = 10), aes()) + geom_smooth() +
+#  ylab("Cell Count") +
+  #geom_text(label=raw$Experiment) + 
+  #ylim(0,NA) +
+  theme_cowplot() + pal
+```
+
+```{r}
+
+data_infected <- raw %>% filter(Infection == "Infected")
+data_infected  %>% ggplot(aes(x=Timepoint, 
+                              y=`Cell Count`,
+                              
+                              col=`Background`)) + geom_point() +
+  geom_text(label=data_infected$Experiment) + 
+  theme_cowplot()
+```
+```{r}
+  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>% filter(`Infection` == "Infected")  %>% filter(`Timepoint` > 20) %>% filter(`Timepoint` < 60)  %>% ggplot(aes(
+  x= (`LCM`/100)*`Cell Count`, 
+                                                                                                                                                   y=(`Cell Count`)
+                                                                                                                        )) + geom_point(aes(col= Background)) + geom_smooth(method = 'glm') +
+ # xlim(0,17.5) +
+  #geom_text(label=raw$Experiment) + 
+  theme_cowplot() + pal
+```
+LCM to recruited Ratio
+```{r}
+  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>% filter(`Infection` == "Infected")  %>% filter(`Timepoint` > 30 & `Timepoint` < 65)  %>% ggplot(aes(
+    x= (`LCM of Myeloid`/(`Monocyte of Myeloid` + `SCM of Myeloid` + `Converting SCM of Myeloid`)),
+    y=(`Live worms`/`L3 Larva`)*100
+    )) +
+  geom_point(aes(col= Background)) + geom_smooth(method = "lm") +
+  scale_x_log10() +
+  xlab("LCM:Recruited Ratio") +
+  ylab("% Worm Recovery") +
+  #geom_text(label=raw$Experiment) + 
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+
+ggsave(filename = "Macrophage_ratio.pdf", path = "./ggsave", device = "pdf", height = 5, width =7.5)
+
+```
+```{r}
+model_data <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>% filter(`Infection` == "Infected")  %>% filter(`Timepoint` > 30 & `Timepoint` < 65)
+
+lmmodel = lm((`Live worms`/`L3 Larva`)~ log10((`Monocyte of Myeloid` + `SCM of Myeloid` + `Converting SCM of Myeloid`)/`LCM of Myeloid`), data = model_data, ) #Create the linear regression
+summary(lmmodel) #Review the results
+```
+
+```{r}
+  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T")  %>% ggplot(aes(
+    x= Timepoint,
+    y=(`LCM of Myeloid`/(`Monocyte of Myeloid` + `SCM of Myeloid` + `Converting SCM of Myeloid`)),
+    col=`Background`)) +
+  geom_point(position = position_jitterdodge(jitter.width = 10),aes()) + geom_smooth() +
+ scale_y_log10() +
+  xlab("Timepoint") +
+  ylab("LCM:Recruited Ratio") +
+  #geom_text(label=raw$Experiment) + 
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+
+ggsave(filename = "Macrophage_ratio_kinetics.pdf", path = "./ggsave", device = "pdf", height = 5, width =7.5)
+
+```
+```{r}
+  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T")  %>% ggplot(aes(
+    x= Timepoint,
+    y=(`LCM of Myeloid`/(`Monocyte of Myeloid` + `SCM of Myeloid` + `Converting SCM of Myeloid`)),
+    col=`Background`)) +
+  geom_point(position = position_jitterdodge(jitter.width = 10),aes()) + geom_smooth() +
+ scale_y_log10() +
+  xlab("Timepoint") +
+  ylab("LCM:Recruited Ratio") +
+  #geom_text(label=raw$Experiment) + 
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+
+ggsave(filename = "Macrophage_ratio_kinetics.pdf", path = "./ggsave", device = "pdf", height = 5, width =7.5)
+
+```
+
+
+All Three ratiop together
+```{r fig.height=10, fig.width=7.5}
+
+
+n1  <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T")  %>% ggplot(aes(
+    x= Timepoint,
+    y=(`LCM of Myeloid`/(`Monocyte of Myeloid` + `SCM of Myeloid` + `Converting SCM of Myeloid`)),
+    col=`Background`)) +
+  geom_point(position = position_jitterdodge(jitter.width = 10),aes()) + geom_smooth() +
+ scale_y_log10() +
+  xlab("Timepoint") +
+  ylab("LCM:Recruited Ratio") +
+  #geom_text(label=raw$Experiment) + 
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          plot.margin = unit(c(1, 0, 1, 0), "cm")) +
+      pal
+
+
+n3 <-   raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>% filter(`Infection` == "Infected")  %>% filter(`Timepoint` > 30 & `Timepoint` < 65)  %>% ggplot(aes(
+    x= (`LCM of Myeloid`/(`Monocyte of Myeloid` + `SCM of Myeloid` + `Converting SCM of Myeloid`)),
+    y=(`Live worms`/`L3 Larva`)*100
+    )) +
+  geom_point(aes(col= Background)) + geom_smooth(method = "lm") +
+  scale_x_log10() +
+  xlab("LCM:Recruited Ratio") +
+  ylab("% Worm Recovery") +
+  #geom_text(label=raw$Experiment) + 
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          plot.margin = unit(c(1, 0, 1, 0), "cm")) +
+      pal
+
+plot_grid(
+          n1,n3,
+          align = 'v', ncol =1, nrow=2, rel_widths = c(1,1))
+
+ggsave(filename = "Macrophage_ratio_kinetics_worm_summary.pdf", path = "./ggsave", device = "pdf", height = 10, width =7.5)
+
+```
+
+
+```{r}
+n2 <- data %>% ggplot(aes(
+  y=(`LCM of Myeloid`/(`Monocyte of Myeloid` + `SCM of Myeloid` + `Converting SCM of Myeloid`)), 
+  x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+   scale_y_log10() +
+    ylab("LCM:Recruited Ratio") +
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitterdodge(dodge.width = 0.75, jitter.width = 0.2)) +
+  theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+   
+          axis.title.x = element_blank(),
+          plot.margin = unit(c(1, 0.5, 1, 0), "cm")) +
+  pal  + 
+  stat_compare_means(method = "t.test", label = "p.signif", label.x.npc = "middle",size=8, vjust = 1) 
+n2
+#ggsave(filename = "Macrophage_ratio_bar_summary.pdf", path = "./ggsave", device = "pdf", height = 5, width =7.5)
+```
+
+
+
+```{r}
+  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>% filter(`Infection` == "Infected")  %>% filter(`Timepoint` > 20)  %>% ggplot(aes(
+    x= `Lyve1+ of Macrophages`,
+    y=(`Live worms`/`L3 Larva`)*100
+    )) +
+  geom_point(aes(col= Background)) + geom_smooth(method = "lm") +
+
+  xlab("PDL2 Expression") +
+  ylab("% Worm Recovery") +
+  #geom_text(label=raw$Experiment) + 
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+
+#ggsave(filename = "PDL2_ratio.pdf", path = "./ggsave", device = "pdf", height = 5, width =7.5)
+
+```
+```{r}
+library(beeswarm)
+raw %>% ggplot(aes(y=`Blood Score`, x=`Background`)) + geom_boxplot() + 
+geom_point(position = position_jitter(width = 0.2)) +
+
+  theme_cowplot()
+```
+
+
+
+
+
+```{r fig.height=5, fig.width=15}
+p1 <- data %>% ggplot(aes(y=`Cell Count`, x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  #geom_quasirandom() +
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitter(width = 0.2)) +
+  theme_cowplot(font_size = 30) +
+  xlab("") +
+  theme(legend.position = "none") +
+  #scale_color_brewer(palette = "Dark2")
+  pal + 
+  stat_compare_means(method = "wilcox.test", label = "p.signif", label.x.npc = "middle",size=8, vjust = 1) 
+p2 <- data %>% ggplot(aes(y=(`Live worms`/`L3 Larva`)*100, x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  #geom_quasirandom() +
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitter(width = 0.2)) +
+  theme_cowplot(font_size = 30) +
+  xlab("") +
+  ylab("% Worm Recovery") +
+  theme(legend.position = "none") +
+  pal + 
+  stat_compare_means(method = "t.test", label = "p.signif", label.x.npc = "middle",size=8, vjust = 1) 
+p3 <- data %>% ggplot(aes(y=`Blood Score`, x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  geom_point(position = position_jitterdodge(jitter.height = 0.15)) +
+  #geom_quasirandom(method = "tukeyDense",dodge.width = 0.9) +
+#geom_point(position = position_jitterdodge(dodge.width = 0.75, jitter.width = 0.2)) +
+  theme_cowplot(font_size = 30) +
+  xlab("") +
+    theme(legend.position = "none") +
+pal + 
+  stat_compare_means(method = "wilcox.test", label = "p.signif", label.x.npc = "middle",size=8, vjust = 1) 
+
+
+
+plot_grid(p2,p1,p3,align = 'h', ncol =3)
+
+#ggsave(filename = "1B.pdf", path = "./ggsave", device = "pdf", height = 5, width =15)
+
+```
+```{r}
+data %>% filter(Infection == 'Naive') %>% group_by(Background) %>% summarise(avg = mean(`Cell Count`,na.rm=TRUE))
+data %>% filter(Infection == 'Infected') %>% group_by(Background) %>% summarise(avg = mean(`Cell Count`,na.rm=TRUE))
+```
+
+
+```{r fig.height=10, fig.width=24}
+t <-stat_compare_means(method = "t.test", label = "p.signif", label.x.npc = "middle",size=8, vjust = 0.25) 
+tight <-     theme(legend.title = element_blank(), 
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          legend.position = "none",
+          plot.margin = unit(c(0, 0, 0, 0), "cm"),
+          axis.text.x=element_blank()
+          ) 
+tightn <-     theme(legend.title = element_blank(), 
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          legend.position = "none",
+          plot.margin = unit(c(0.25, 0, 0, 0), "cm"),
+          #axis.text.x=element_blank()
+          ) 
+cow <- theme_cowplot(font_size = 30)
+
+cols <-  c("black","firebrick3", "purple", "green")
+pal <- scale_color_manual(values = cols)
+
+
+# Make blank plot for arrangement 
+blankP <- ggplot()+geom_blank(aes(1,1)) + 
+  cowplot::theme_nothing()
+
+p1 <- data %>% ggplot(aes(y=`B cells`, x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  #geom_quasirandom() +
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitter(width = 0.2)) +
+  ggtitle("B cells") +
+  #ylab("% of total cells") +
+cow +  theme(legend.title = element_blank(), 
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          legend.position = "top",
+          plot.margin = unit(c(0, 0, 0, 0), "cm"),
+          axis.text.x=element_blank()
+          )  + pal + t
+# Get and save legend 
+legend <- get_legend(p1)
+ggsave(plot = legend,filename = "legend.pdf", path = "./ggsave", device = "pdf", height =1, width =5)
+
+p1 <- p1 + theme(legend.position="none")
+
+# rest of plots
+p2 <- data %>% ggplot(aes(y=Eosinophils, x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  #geom_quasirandom() +
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitter(width = 0.2)) +
+  ggtitle("Eosinophils") +
+cow + tight + pal + t
+p3 <- data %>% ggplot(aes(y=Neutrophils, x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitterdodge(dodge.width = 0.75, jitter.width = 0.2)) +
+  ggtitle("Neutrophils") +
+cow + tight + pal + t
+p4 <- data %>% ggplot(aes(y=`CD4+ T cells`, x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitterdodge(dodge.width = 0.75, jitter.width = 0.2)) +
+   ggtitle("CD4+ T cells") +
+cow + tight + pal + t
+p5 <- data %>% ggplot(aes(y=DC, x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitterdodge(dodge.width = 0.75, jitter.width = 0.2)) +
+   ggtitle("cDC") +
+cow + tight + pal + t
+p6 <- data %>% ggplot(aes(y=`Myeloid cells`, x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitterdodge(dodge.width = 0.75, jitter.width = 0.2)) +
+  ggtitle("Myeloid Cells") +
+  #ylab("") +
+cow + tight + pal + t
+
+
+# row2
+
+n1 <- data %>% ggplot(aes(y=(`B cells`/100)*`Cell Count`, x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  #geom_quasirandom() +
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitter(width = 0.2)) +
+cow + tightn + pal + t
+n2 <- data %>% ggplot(aes(y=(Eosinophils/100)*`Cell Count`, x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  #geom_quasirandom() +
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitter(width = 0.2)) +
+cow + tightn + pal + t
+n3 <- data %>% ggplot(aes(y=(Neutrophils/100)*`Cell Count`, x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitterdodge(dodge.width = 0.75, jitter.width = 0.2)) +
+cow + tightn + pal + t
+n4 <- data %>% ggplot(aes(y=(`CD4+ T cells`/100)*`Cell Count`, x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitterdodge(dodge.width = 0.75, jitter.width = 0.2)) +
+cow + tightn + pal + t
+n5 <- data %>% ggplot(aes(y=(DC/100)*`Cell Count`, x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitterdodge(dodge.width = 0.75, jitter.width = 0.2)) +
+cow + tightn + pal + t
+n6 <- data %>% ggplot(aes(y=(`Myeloid cells`/100)*`Cell Count`, x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitterdodge(dodge.width = 0.75, jitter.width = 0.2)) +
+cow + tightn + pal + t
+
+plot_grid(
+          p1,p2,p3,p4,p5,p6,
+          n1,n2,n3,n4,n5,n6,
+          align = 'v', ncol =6, nrow=2)
+
+ggsave(filename = "1E_F_wide.pdf", path = "./ggsave", device = "pdf", height = 10, width =28)
+
+```
+
+```{r fig.height=10, fig.width=20}
+
+#kwargs 
+yl <- xlab("")
+cow <- theme_cowplot(font_size = 30) 
+pal <- pal
+tight <-theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          axis.text.x=element_blank(),
+          plot.margin = unit(c(0.5, 0, 0, 0), "cm"))
+      
+tightn <- theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          plot.margin = unit(c(0.5, 0, 0, 0), "cm"))
+
+t <-stat_compare_means(method = "t.test", label = "p.signif", label.x.npc = "middle",size=8, vjust = 0.25) 
+
+p1 <- data %>% ggplot(aes(y=`Monocyte of Myeloid`, x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+  ggtitle("Monocytes") +
+cow +yl + pal + tight + t
+ pal
+p2 <- data %>% ggplot(aes(y=`SCM of Myeloid`, x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+  ggtitle("SCM") +
+cow +yl + pal + tight + t
+p3 <- data %>% ggplot(aes(y=`Converting SCM of Myeloid`, x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+    ggtitle("Converting SCM") +
+cow +yl + pal + tight + t
+p4 <- data %>% ggplot(aes(y=`LCM of Myeloid`, x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+    ggtitle("LCM") +
+cow +yl + pal + tight + t
+#numbers
+library(scales)
+n1 <- data %>% ggplot(aes(y=(`Monocyte of Myeloid`/100)*`Cell Count`, x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+    ylab("Monocytes") +
+    scale_y_continuous(labels = scientific) +
+cow +yl + pal + tightn + t
+
+n2 <- data %>% ggplot(aes(y=(`SCM of Myeloid`/100)*`Cell Count`, x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+  ylab("DC-like SCM") +
+cow +yl + pal + tightn + t
+
+n3 <- data %>% ggplot(aes(y=(`Converting SCM of Myeloid`/100)*`Cell Count`, x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+  ylab("Converting SCM") +
+cow +yl + pal + tightn + t
+
+n4 <- data %>% ggplot(aes(y=(`LCM of Myeloid`/100)*`Cell Count`, x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+  ylab("LCM") +
+cow +yl + pal + tightn + t
+
+
+plot_grid(
+          p2,p1,p3,p4,
+          n2,n1,n3,n4,
+          align = 'v', ncol =4, nrow=2)
+
+ggsave(filename = "2B.pdf", path = "./ggsave", device = "pdf", height = 10, width =20)
+
+```
+
+
+```{r fig.height=10, fig.width=10}
+x1 <- data %>% ggplot(aes(
+  y=`RELMA+ of LCM`,
+  x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  #geom_quasirandom() +
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitter(width = 0.2)) +
+  theme_cowplot(font_size = 30) +
+  xlab("") +
+  ylab("% RELMA+" ) +
+  ggtitle("RELMA") +
+
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          axis.text.x=element_blank(),
+          plot.margin = unit(c(0.5, 0, 0, 0), "cm")) +
+pal + t
+
+
+x2 <- data %>% ggplot(aes(
+  y=`Ym1+ of LCM`,
+  x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  #geom_quasirandom() +
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitter(width = 0.2)) +
+  theme_cowplot(font_size = 30) +
+  xlab("") +
+    ylab("% Ym1+" ) +
+  ggtitle("Ym1") +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          axis.text.x=element_blank(),
+          plot.margin = unit(c(0.5, 0, 0, 0), "cm")) +
+pal + t
+
+
+
+x3 <- data %>% ggplot(aes(
+  y=(`RELMA+ of LCM`/100)* (`Cell Count`*(LCM/100)) ,
+  x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  #geom_quasirandom() +
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitter(width = 0.2)) +
+  theme_cowplot(font_size = 30) +
+  xlab("") +
+  ylab("RELMA+ LCM" ) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          plot.margin = unit(c(0.5, 0, 0, 0), "cm")) +
+pal + t
+
+x4 <- data %>% ggplot(aes(
+  y=(`Ym1+ of LCM`/100)* (`Cell Count`*(LCM/100)),
+  x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  #geom_quasirandom() +
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitter(width = 0.2)) +
+  theme_cowplot(font_size = 30) +
+  xlab("") +
+  ylab("Ym1+ LCM" ) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          plot.margin = unit(c(0.5, 0, 0, 0), "cm")) +
+pal + t
+
+
+plot_grid(x1,x2,x3,x4, align = 'v', nrow =2, ncol = 2)
+
+ggsave(filename = "2D.pdf", path = "./ggsave", device = "pdf", height = 10, width =10)
+
+```
+```{r fig.height=10, fig.width=10}
+x1 <- data %>% ggplot(aes(
+
+  y=`RELMA of Macrophages`,
+    x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  #geom_quasirandom() +
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitter(width = 0.2)) +
+  theme_cowplot(font_size = 30) +
+  xlab("") +
+  ylab("% RELMA+" ) +
+  ggtitle("RELMA") +
+
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          axis.text.x=element_blank(),
+          plot.margin = unit(c(0.5, 0, 0, 0), "cm")) +
+pal + t
+
+
+x2 <- data %>% ggplot(aes( 
+  y=`Ym1 of Macrophages`,
+  x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  #geom_quasirandom() +
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitter(width = 0.2)) +
+  theme_cowplot(font_size = 30) +
+  xlab("") +
+    ylab("% Ym1+" ) +
+  ggtitle("Ym1") +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          axis.text.x=element_blank(),
+          plot.margin = unit(c(0.5, 0, 0, 0), "cm")) +
+pal + t
+
+
+
+x3 <- data %>% ggplot(aes(
+  y=(`RELMA of Macrophages`/100)* (`Cell Count`*((`Myeloid cells`-Monocytes) /100)) ,
+  x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  #geom_quasirandom() +
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitter(width = 0.2)) +
+  theme_cowplot(font_size = 30) +
+  xlab("") +
+  ylab("RELMA+ macrophages" ) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          plot.margin = unit(c(0.5, 0, 0, 0), "cm")) +
+pal + t
+
+x4 <- data %>% ggplot(aes(
+  y=(`Ym1 of Macrophages`/100)* (`Cell Count`*((`Myeloid cells`-Monocytes)/100)),
+  x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  #geom_quasirandom() +
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitter(width = 0.2)) +
+  theme_cowplot(font_size = 30) +
+  xlab("") +
+  ylab("Ym1+ macrophages" ) +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          plot.margin = unit(c(0.5, 0, 0, 0), "cm")) +
+pal + t
+
+
+plot_grid(x1,x2,x3,x4, align = 'v', nrow =2, ncol = 2)
+
+ggsave(filename = "2D_all_macrophages.pdf", path = "./ggsave", device = "pdf", height = 10, width =10)
+
+```
+Ki67 Graphs 
+
+```{r fig.height=5, fig.width=18}
+p1 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T")  %>% ggplot(aes(
+    x= Timepoint,
+    y= `Ki67 of Macrophages`,
+    col=`Background`)) +
+  geom_point(position = position_jitterdodge(jitter.width = 10),aes()) + geom_smooth() +
+
+  xlab("Timepoint") +
+  ylab("% Ki67+") +
+  ggtitle("Macrophages") +
+  #geom_text(label=raw$Experiment) + 
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+
+p2 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T")  %>% ggplot(aes(
+    x= Timepoint,
+    y=`Ki67 of B cells` ,
+    col=`Background`)) +
+  geom_point(position = position_jitterdodge(jitter.width = 10),aes()) + geom_smooth() +
+
+  xlab("Timepoint") +
+  ylab("") +
+    ggtitle("B Cells") +
+  #geom_text(label=raw$Experiment) + 
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+
+p3 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T")  %>% ggplot(aes(
+    x= Timepoint,
+    y=`Ki67 of T cells`,
+    col=`Background`)) +
+  geom_point(position = position_jitterdodge(jitter.width = 10),aes()) + geom_smooth() +
+
+  xlab("Timepoint") +
+  ylab("") +
+      ggtitle("CD4+ T Cells") +
+  #geom_text(label=raw$Experiment) + 
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+
+plot_grid(p1,p2,p3, align = 'v', nrow =1, ncol = 3)
+
+ggsave(filename = "ki67.pdf", path = "./ggsave", device = "pdf", height = 5, width =18)
+
+```
+
+```{r}
+p1 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T")  %>% ggplot(aes(
+    x= Timepoint,
+    y= `B1 of B cells`,
+    col=`Background`)) +
+  geom_point(position = position_jitterdodge(jitter.width = 10),aes()) + geom_smooth() +
+  xlab("Timepoint") +
+  ylab("%") +
+  ggtitle("B1 of B cells") +
+  #geom_text(label=raw$Experiment) + 
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+p1
+```
+
+
+```{r fig.height=10, fig.width=7.5}
+n3 <- data %>% ggplot(aes(y=
+                            `Tim4+ of LCM`
+                          , x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitterdodge(dodge.width = 0.75, jitter.width = 0.2)) +
+  theme_cowplot(font_size = 30) +
+  xlab("") +
+  ylab("% Tim4+") +
+    theme(legend.position = "none", 
+          plot.margin = unit(c(0.5, 0, 0, 0), "cm")) +
+ pal + t
+
+p2 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T")  %>% ggplot(aes(
+    x= Timepoint,
+    y=`Tim4+ of LCM` ,
+    col=`Background`)) +
+  geom_point(position = position_jitterdodge(jitter.width = 10),aes()) + geom_smooth() +
+  xlab("Timepoint") +
+  ylab("% Tim4+") +
+  #geom_text(label=raw$Experiment) + 
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal +t
+
+plot_grid(n3,p2, align = 'v', nrow =2, ncol = 1, rel_widths=c(0.75,1), label_y = "% Tim4+")
+
+plot_grid(n3,p2, nrow =2, ncol = 1)
+
+ggsave(filename = "Tim4.pdf", path = "./ggsave", device = "pdf", height = 10, width =7.5)
+
+```
+
+
+```{r fig.height=10, fig.width=30}
+# kwargs
+xlim <-xlim(0,70)
+xlab <- xlab("Timepoint")
+tight <-     theme(legend.position = "none", 
+          plot.margin = unit(c(0, 0, 0, 0), "cm"))
+tightn <-  theme(legend.position = "none",
+                 axis.text.x=element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm"))
+t <- t #defined above
+pal <- pal #defined above
+cow <- theme_cowplot(font_size = 30)
+
+# plots
+p1 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T")  %>% ggplot(aes(
+    x= Timepoint,
+    y= ST2,
+    col=`Background`)) +
+  geom_point(position = position_jitterdodge(jitter.width = 10),aes()) + geom_smooth() +
+xlim + cow + xlab + tight + t + pal  
+
+p2 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T")  %>% ggplot(aes(
+    x= Timepoint,
+    y= CD40L,
+    col=`Background`)) +
+  geom_point(position = position_jitterdodge(jitter.width = 10),aes()) + geom_smooth() +
+xlim + cow + xlab + tight + t + pal  
+
+p3 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T")  %>% ggplot(aes(
+    x= Timepoint,
+    y= `PD-1`,
+    col=`Background`)) +
+  geom_point(position = position_jitterdodge(jitter.width = 10),aes()) + geom_smooth() +
+xlim + cow + xlab + tight + t + pal  
+
+p4 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T")  %>% ggplot(aes(
+    x= Timepoint,
+    y= `IFN-g`,
+    col=`Background`)) +
+  geom_point(position = position_jitterdodge(jitter.width = 10),aes()) + geom_smooth() +
+xlim + cow + xlab + tight + t + pal  
+
+p5 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T")  %>% ggplot(aes(
+    x= Timepoint,
+    y= `IL-4`,
+    col=`Background`)) +
+  geom_point(position = position_jitterdodge(jitter.width = 10),aes()) + geom_smooth() +
+xlim + cow + xlab + tight + t + pal  
+
+p6 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T")  %>% ggplot(aes(
+    x= Timepoint,
+    y= `IL-5`,
+    col=`Background`)) +
+  geom_point(position = position_jitterdodge(jitter.width = 10),aes()) + geom_smooth() +
+xlim + cow + xlab + tightn + t + pal  
+
+
+p7 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T")  %>% ggplot(aes(
+    x= Timepoint,
+    y= `IL-13`,
+    col=`Background`)) +
+  geom_point(position = position_jitterdodge(jitter.width = 10),aes()) + geom_smooth() +
+xlim + cow + xlab + tightn + t + pal  
+
+p8 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T")  %>% ggplot(aes(
+    x= Timepoint,
+    y= `IL-10`,
+    col=`Background`)) +
+  geom_point(position = position_jitterdodge(jitter.width = 10),aes()) + geom_smooth() +
+xlim + cow + xlab + tightn + t + pal  
+
+
+p9 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T")  %>% ggplot(aes(
+    x= Timepoint,
+    y= `IL-17A`,
+    col=`Background`)) +
+  geom_point(position = position_jitterdodge(jitter.width = 10),aes()) + geom_smooth() +
+xlim + cow + xlab + tightn + t + pal  
+
+
+plot_grid(p1,p3,p4,p5,p6,p7,p8,p9, align = 'v', nrow =2, ncol = 4)
+
+ggsave(filename = "cytokine.pdf", path = "./ggsave", device = "pdf", height = 10, width =30)
+
+```
+
+```{r fig.height=10, fig.width=30}
+p1 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T")  %>% ggplot(aes(
+    x= Timepoint,
+    y=(  ST2 /100 ) * ((`CD4+ T cells`/100)*`Cell Count`)  ,
+    col=`Background`)) +
+ 
+  geom_point(position = position_jitterdodge(jitter.width = 10),aes()) + geom_smooth() +
+ ylab("ST2+ CD4+ T Cells") +
+xlim + cow + xlab + tight + t + pal
+
+p2 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T")  %>% ggplot(aes(
+    x= Timepoint,
+    y= (CD40L/100 ) * ((`CD4+ T cells`/100)*`Cell Count`),
+    col=`Background`)) +
+  geom_point(position = position_jitterdodge(jitter.width = 10),aes()) + geom_smooth() +
+ ylab("CD40L+ CD4+ T Cells") +
+xlim + cow + xlab + tight + t + pal
+p3 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T")  %>% ggplot(aes(
+    x= Timepoint,
+    y= (`PD-1` /100 ) * ((`CD4+ T cells`/100)*`Cell Count`)  ,
+    col=`Background`)) +
+  geom_point(position = position_jitterdodge(jitter.width = 10),aes()) + geom_smooth() +
+ ylab("PD-1+ CD4+ T Cells") +
+xlim + cow + xlab + tight + t + pal
+p4 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T")  %>% ggplot(aes(
+    x= Timepoint,
+    y= (`IFN-g` /100 ) * ((`CD4+ T cells`/100)*`Cell Count`)  ,
+    col=`Background`)) +
+  geom_point(position = position_jitterdodge(jitter.width = 10),aes()) + geom_smooth() +
+ ylab("IFN-γ+ CD4+ T Cells") +
+xlim + cow + xlab + tight + t + pal
+p5 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T")  %>% ggplot(aes(
+    x= Timepoint,
+    y= (`IL-4` /100 ) * ((`CD4+ T cells`/100)*`Cell Count`)  ,
+    col=`Background`)) +
+  geom_point(position = position_jitterdodge(jitter.width = 10),aes()) + geom_smooth() +
+xlim + cow + xlab + tight + t + pal
+p6 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T")  %>% ggplot(aes(
+    x= Timepoint,
+    y= (`IL-5` /100 ) * ((`CD4+ T cells`/100)*`Cell Count`)  ,
+    col=`Background`)) +
+  geom_point(position = position_jitterdodge(jitter.width = 10),aes()) + geom_smooth() +
+ ylab("IL-5 CD4+ T Cells") +
+xlim + cow + xlab + tightn + t + pal
+
+p7 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T")  %>% ggplot(aes(
+    x= Timepoint,
+    y= (`IL-13` /100 ) * ((`CD4+ T cells`/100)*`Cell Count`)  ,
+    col=`Background`)) +
+  geom_point(position = position_jitterdodge(jitter.width = 10),aes()) + geom_smooth() +
+ ylab("IL-13 CD4+ T Cells") +
+xlim + cow + xlab + tightn + t + pal
+p8 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T")  %>% ggplot(aes(
+    x= Timepoint,
+    y= (`IL-10` /100 ) * ((`CD4+ T cells`/100)*`Cell Count`)  ,
+    col=`Background`)) +
+  geom_point(position = position_jitterdodge(jitter.width = 10),aes()) + geom_smooth() +
+ ylab("IL-10 CD4+ T Cells") +
+xlim + cow + xlab + tightn + t + pal
+
+p9 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T")  %>% ggplot(aes(
+    x= Timepoint,
+    y= (`IL-17A` /100 ) * ((`CD4+ T cells`/100)*`Cell Count`)  ,
+    col=`Background`)) +
+  geom_point(position = position_jitterdodge(jitter.width = 10),aes()) + geom_smooth() +
+ ylab("IL-17A+ CD4+ T Cells") +
+xlim + cow + xlab + tightn + t + pal
+
+plot_grid(p1,p3,p4,p5,p6,p7,p8,p9, align = 'v', nrow =2, ncol = 4)
+
+ggsave(filename = "cytokine_number.pdf", path = "./ggsave", device = "pdf", height = 10, width =30)
+
+```
+
+
+
+```{r fig.height=10, fig.width=18}
+  
+p1 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>% filter(Timepoint > 20 | Timepoint == 0) %>% ggplot(aes(
+  y=`ST2`,
+    x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  #geom_quasirandom() +
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitter(width = 0.2)) +
+  theme_cowplot(font_size = 30) +
+
+    theme(legend.position = "none", 
+          axis.title.x = element_blank(),
+          axis.text.x=element_blank(),
+          plot.margin = unit(c(0.5, 0, 0, 0), "cm")) +
+pal
+p2 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>% filter(Timepoint > 20 | Timepoint == 0) %>% ggplot(aes(
+  y=`CD40L`,
+    x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  #geom_quasirandom() +
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitter(width = 0.2)) +
+  theme_cowplot(font_size = 30) +
+
+    theme(legend.position = "none", 
+          axis.title.x = element_blank(),
+          axis.text.x=element_blank(),
+          plot.margin = unit(c(0.5, 0, 0, 0), "cm")) +
+pal
+p3 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>% filter(Timepoint > 20 | Timepoint == 0) %>% ggplot(aes(
+  y=`IFN-g`,
+    x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  #geom_quasirandom() +
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitter(width = 0.2)) +
+  theme_cowplot(font_size = 30) +
+
+    theme(legend.position = "none", 
+          axis.title.x = element_blank(),
+          axis.text.x=element_blank(),
+          plot.margin = unit(c(0.5, 0, 0, 0), "cm")) +
+pal
+p4 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>% filter(Timepoint > 20 | Timepoint == 0) %>% ggplot(aes(
+  y=`IL-4`,
+    x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  #geom_quasirandom() +
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitter(width = 0.2)) +
+  theme_cowplot(font_size = 30) +
+
+    theme(legend.position = "none", 
+          axis.title.x = element_blank(),
+          axis.text.x=element_blank(),
+          plot.margin = unit(c(0.5, 0, 0, 0), "cm")) +
+pal
+p5 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>% filter(Timepoint > 20 | Timepoint == 0) %>% ggplot(aes(
+  y=`IL-5`,
+    x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  #geom_quasirandom() +
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitter(width = 0.2)) +
+  theme_cowplot(font_size = 30) +
+
+    theme(legend.position = "none", 
+          axis.title.x = element_blank(),
+          axis.text.x=element_blank(),
+          plot.margin = unit(c(0.5, 0, 0, 0), "cm")) +
+pal
+p6 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>% filter(Timepoint > 20 | Timepoint == 0) %>% ggplot(aes(
+  y=`IL-13`,
+    x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  #geom_quasirandom() +
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitter(width = 0.2)) +
+  theme_cowplot(font_size = 30) +
+
+    theme(legend.position = "none", 
+          axis.title.x = element_blank(),
+          axis.text.x=element_blank(),
+          plot.margin = unit(c(0.5, 0, 0, 0), "cm")) +
+pal
+p7 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>% filter(Timepoint > 20 | Timepoint == 0) %>% ggplot(aes(
+  y=`IL-10`,
+    x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  #geom_quasirandom() +
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitter(width = 0.2)) +
+  theme_cowplot(font_size = 30) +
+
+    theme(legend.position = "none", 
+          axis.title.x = element_blank(),
+          axis.text.x=element_blank(),
+          plot.margin = unit(c(0.5, 0, 0, 0), "cm")) +
+pal
+p8 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>% filter(Timepoint > 20 | Timepoint == 0) %>% ggplot(aes(
+  y=`IL-17A`,
+    x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  #geom_quasirandom() +
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitter(width = 0.2)) +
+  theme_cowplot(font_size = 30) +
+
+    theme(legend.position = "none", 
+          axis.title.x = element_blank(),
+          axis.text.x=element_blank(),
+          plot.margin = unit(c(0.5, 0, 0, 0), "cm")) +
+pal
+
+p9 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>% filter(Timepoint > 20 | Timepoint == 0) %>% ggplot(aes(
+  y=`PD-1`,
+    x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  #geom_quasirandom() +
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitter(width = 0.2)) +
+  theme_cowplot(font_size = 30) +
+
+    theme(legend.position = "none", 
+          axis.title.x = element_blank(),
+          axis.text.x=element_blank(),
+          plot.margin = unit(c(0.5, 0, 0, 0), "cm")) +
+pal
+
+plot_grid(p1,p2,p3,p4,p5,p6,p7,p8,p9, align = 'v', nrow =2, ncol = 5)
+ggsave(filename = "cytokine_bar.pdf", path = "./ggsave", device = "pdf", height = 10, width =30)
+
+```
+
+
+
+
+```{r}
+p1 <-  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>% filter(Timepoint > 30 | Timepoint == 0) %>% ggplot(aes(
+  y=`IFN-g`/`IL-13`,
+    x=`Infection`, col=Background)) + 
+  geom_boxplot() + 
+  #geom_quasirandom() +
+  geom_quasirandom(method = "tukeyDense",dodge.width = 0.75) +
+#geom_point(position = position_jitter(width = 0.2)) +
+  theme_cowplot(font_size = 30) +
+scale_y_log10() +
+    theme(legend.position = "none", 
+          axis.title.x = element_blank(),
+          axis.text.x=element_blank(),
+          plot.margin = unit(c(0.5, 0, 0, 0), "cm")) +
+pal
+p1
+```
+
+```{r}
+  raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>% filter(`Infection` == "Infected")  %>% filter(`Timepoint` > 20)  %>% ggplot(aes(
+    x= `IFN-g`/`IL-13`,
+    y=(`LCM of Myeloid`/(`Monocyte of Myeloid` + `SCM of Myeloid` + `Converting SCM of Myeloid`))
+      #(`Live worms`/`L3 Larva`)*100
+    )) +
+  geom_point(aes(col= Background)) + geom_smooth(method = "lm") +
+  scale_x_log10() +
+  scale_y_log10() +
+  xlab("IGN-gamma/IL-13 Ratio") +
+  ylab("LCM:recruited Ratio") +
+  #geom_text(label=raw$Experiment) + 
+theme_cowplot(font_size = 30) +
+    theme(legend.position = "none", 
+          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+      pal
+
+ggsave(filename = "cytokine_ratio.pdf", path = "./ggsave", device = "pdf", height = 5, width =7.5)
+
+```
+```{r}
+model_data <- raw %>% filter(`Remove from Analysis (justified)` != "T") %>% filter(`OK for strain comparison` == "T") %>% filter(`Infection` == "Infected")  %>% filter(`Timepoint` > 20)
+
+lmmodel = lm((`Live worms`/`L3 Larva`)~ log10(`IFN-g`/`IL-13`), data = model_data, ) #Create the linear regression
+summary(lmmodel) #Review the results
+```
