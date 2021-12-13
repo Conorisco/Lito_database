@@ -14,5 +14,7 @@ Basic R Data visulaisation tutorial I created for Msc Immunology Studnets at Tri
 ## To Do
 
 [x] Publish dataset and analysis pipeline
+
 [x] Revamped analysis which is easier to follow and more representative rather than exahaustive
+
 [ ] shinyapp
