@@ -1,6 +1,6 @@
 # Lito database
 
-Allen Lab L. signodonis longitudinal data. 
+Allen Lab **L. signodonis** longitudinal data. 
 
 * Created by Conor Finlay https://github.com/Conorisco.
 * Maintained by Conor Finlay & James Parkinson.
